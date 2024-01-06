@@ -1,0 +1,51 @@
+name: Compile Linux Kernel
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        kernel_version:
+          - "5.15.0"
+        job_number: 
+          - 1
+          - 2
+          # Add more job numbers up to 256
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev
+
+      - name: Download and extract kernel source
+        run: |
+          wget https://mirrors.edge.kernel.org/pub/linux/kernel/v${{ matrix.kernel_version }}/linux-${{ matrix.kernel_version }}.tar.xz
+          tar -xvf linux-${{ matrix.kernel_version }}.tar.xz
+
+      - name: Configure kernel
+        run: |
+          cd linux-${{ matrix.kernel_version }}
+          make defconfig
+
+      - name: Compile kernel
+        run: |
+          cd linux-${{ matrix.kernel_version }}
+          make -j$(nproc)
+
+      - name: Save artifacts
+        if: success()
+        uses: actions/upload-artifact@v2
+        with:
+          name: kernel-artifacts-${{ matrix.job_number }}
+          path: |
+            linux-${{ matrix.kernel_version }}/arch/x86/boot/bzImage
+            linux-${{ matrix.kernel_version }}/System.map
+            linux-${{ matrix.kernel_version }}/vmlinux
